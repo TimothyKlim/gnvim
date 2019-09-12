@@ -791,6 +791,26 @@ impl From<Value> for WindowFloatPos {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct MsgSetPos {
+    pub grid: i64,
+    pub row: u64,
+    pub scrolled: bool,
+    pub sep_char: String,
+}
+
+impl From<Value> for MsgSetPos {
+    fn from(args: Value) -> Self {
+        let args = unwrap_array!(args);
+        Self {
+            grid: unwrap_i64!(args[0]),
+            row: unwrap_u64!(args[1]),
+            scrolled: unwrap_bool!(args[2]),
+            sep_char: unwrap_str!(args[3]).to_string(),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub enum RedrawEvent {
     SetTitle(Vec<String>),
 
@@ -832,6 +852,7 @@ pub enum RedrawEvent {
     WindowFloatPos(Vec<WindowFloatPos>),
     WindowHide(Vec<i64>),
     WindowClose(Vec<i64>),
+    MsgSetPos(Vec<MsgSetPos>),
 
     Ignored(String),
     Unknown(String),
@@ -883,6 +904,7 @@ impl fmt::Display for RedrawEvent {
             RedrawEvent::WindowFloatPos(..) => write!(fmt, "WindowFloatPos"),
             RedrawEvent::WindowHide(..) => write!(fmt, "WindowHide"),
             RedrawEvent::WindowClose(..) => write!(fmt, "WindowClose"),
+            RedrawEvent::MsgSetPos(..) => write!(fmt, "MsgSetPos"),
 
             RedrawEvent::Ignored(..) => write!(fmt, "Ignored"),
             RedrawEvent::Unknown(e) => write!(fmt, "Unknown({})", e),
@@ -1138,6 +1160,9 @@ fn parse_single_redraw_event(cmd: &str, args: Vec<Value>) -> RedrawEvent {
                     unwrap_i64!(v[0])
                 })
                 .collect(),
+        ),
+        "msg_set_pos" => RedrawEvent::MsgSetPos(
+            args.into_iter().map(MsgSetPos::from).collect(),
         ),
 
         "mouse_on" | "mouse_off" => RedrawEvent::Ignored(cmd.to_string()),
