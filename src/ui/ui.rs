@@ -24,7 +24,7 @@ use ui::font::Font;
 use ui::grid::Grid;
 use ui::popupmenu::Popupmenu;
 use ui::tabline::Tabline;
-use ui::window::Window;
+use ui::window::{Window, MsgWindow};
 
 type Windows = HashMap<i64, Window>;
 type Grids = HashMap<i64, Grid>;
@@ -63,10 +63,12 @@ struct UIState {
     windows: Windows,
     /// Container for non-floating windows.
     windows_container: gtk::Fixed,
-    msg_grid_container: gtk::Fixed,
-    msg_grid_frame: gtk::Frame,
     /// Container for floating windows.
     windows_float_container: gtk::Fixed,
+    /// Container for the msg window/grid.
+    msg_window_container: gtk::Fixed,
+    /// Window for our messages grid.
+    msg_window: MsgWindow,
     /// All grids currently in the UI.
     grids: Grids,
     /// Highlight definitions.
@@ -168,17 +170,16 @@ impl UI {
             &windows_float_container,
             "Floating windows contianer",
         );
-        let msg_grid_container = gtk::Fixed::new();
+        let msg_window_container = gtk::Fixed::new();
         gtk::WidgetExt::set_name(
-            &msg_grid_container,
+            &msg_window_container,
             "Message grid contianer",
         );
         overlay.add_overlay(&windows_container);
         overlay.add_overlay(&windows_float_container);
+        overlay.add_overlay(&msg_window_container);
 
-        let msg_grid_frame = gtk::Frame::new(None);
-        msg_grid_container.put(&msg_grid_frame, 0, 0);
-        overlay.add_overlay(&msg_grid_container);
+        let msg_window = MsgWindow::new(msg_window_container.clone());
 
         // TODO(ville): is pass through for windows_container required in any case?
         //overlay.set_overlay_pass_through(&windows_container, true);
@@ -292,8 +293,8 @@ impl UI {
                 css_provider,
                 windows: Windows::new(),
                 windows_container,
-                msg_grid_container,
-                msg_grid_frame,
+                msg_window_container,
+                msg_window,
                 windows_float_container,
                 grids,
                 mode_infos: vec![],
@@ -932,15 +933,7 @@ fn handle_redraw_event(
             RedrawEvent::MsgSetPos(evt) =>  {
                 evt.iter().for_each(|e| {
                     let grid = state.grids.get(&e.grid).unwrap();
-                    state.msg_grid_frame.add(&grid.widget());
-
-                    let metrics = grid.get_grid_metrics();
-                    let w = metrics.cols * metrics.cell_width;
-                    let h = metrics.rows * metrics.cell_height;
-
-                    state.msg_grid_frame.set_size_request(w as i32, h as i32);
-                    state.msg_grid_container.move_(&state.msg_grid_frame, 0, (metrics.cell_height * e.row) as i32);
-                    state.msg_grid_container.show_all();
+                    state.msg_window.set_pos(&grid, e.row);
                 });
             }
             RedrawEvent::Ignored(_) => (),
